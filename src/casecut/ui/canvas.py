@@ -65,6 +65,16 @@ class MaskCanvas(QtWidgets.QWidget):
             self.maskChanged.emit()
             self.update()
 
+    def auto_holes(self) -> int:
+        """Авто-вырез всех отверстий камеры (фон сквозь дырки). Возвращает кол-во px."""
+        if self._bgr is None or self.editor is None:
+            return 0
+        n = self.editor.cut_openings(self._bgr, bg_tol=self.tolerance)
+        if n:
+            self.maskChanged.emit()
+            self.update()
+        return n
+
     def undo(self) -> None:
         if self.editor:
             self.editor.undo()

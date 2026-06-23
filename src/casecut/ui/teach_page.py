@@ -25,8 +25,12 @@ class TeachPage(QtWidgets.QWidget):
         b_open.clicked.connect(self._open_image)
         b_outline = QtWidgets.QPushButton("Предложить контур")
         b_outline.clicked.connect(self.canvas.propose_outline)
+        b_holes = QtWidgets.QPushButton("Авто-отверстия")
+        b_holes.setToolTip("Вырезать все отверстия камеры одним нажатием (слайдер «Допуск» — чувствительность)")
+        b_holes.clicked.connect(self._auto_holes)
         bar.addWidget(b_open)
         bar.addWidget(b_outline)
+        bar.addWidget(b_holes)
         bar.addSpacing(12)
 
         self._tools = QtWidgets.QButtonGroup(self)
@@ -88,6 +92,16 @@ class TeachPage(QtWidgets.QWidget):
         b_save.clicked.connect(self._save)
         bottom.addWidget(b_save)
         root.addLayout(bottom)
+
+    def _auto_holes(self):
+        if not self.canvas.has_image():
+            return
+        n = self.canvas.auto_holes()
+        if n == 0:
+            QtWidgets.QMessageBox.information(
+                self, "Авто-отверстия",
+                "Отверстия не найдены. Увеличь слайдер «Допуск» и попробуй снова, "
+                "либо вырежи Палочкой/Ластиком вручную.")
 
     def _open_image(self):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(

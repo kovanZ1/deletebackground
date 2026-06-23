@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=CaseCutoutTool
-AppVersion=0.1.3
+AppVersion=0.1.4
 DefaultDirName={autopf}\CaseCutoutTool
 DefaultGroupName=CaseCutoutTool
 DisableProgramGroupPage=yes

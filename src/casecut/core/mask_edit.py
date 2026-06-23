@@ -100,6 +100,17 @@ class MaskEditor:
         self.mask[region] = 0 if mode == ERASE else 255
         return True
 
+    def cut_openings(self, image_bgr, **kw) -> int:
+        """Авто-вырез отверстий камеры: внутри тела убрать области цвета фона.
+        Возвращает число вырезанных пикселей (0 — ничего не найдено)."""
+        from .holes import detect_background_openings
+        region = detect_background_openings(self.mask, image_bgr, **kw)
+        n = int(region.sum())
+        if n:
+            self.begin_stroke()
+            self.mask[region] = 0
+        return n
+
     def binarize(self) -> None:
         """Привести к строгому 0/255 (после сглаженных операций)."""
         self.mask = np.where(self.mask > 127, 255, 0).astype(np.uint8)
