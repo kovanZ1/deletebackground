@@ -1,0 +1,14 @@
+# Core — детерминированное ядро + конвейер + GUI
+numpy>=1.26
+opencv-python-headless>=4.9
+Pillow>=10.0
+PySide6>=6.6
+
+# --- Опционально, ставится на соответствующих этапах ---
+# ML предложение маски (режим обучения):
+# onnxruntime>=1.17        # или onnxruntime-gpu где есть GPU
+# rembg>=2.0
+# Прозрачные зоны (alpha matting):
+# pymatting>=1.1
+# Упаковка в .exe (выполняется на Windows):
+# pyinstaller>=6.0

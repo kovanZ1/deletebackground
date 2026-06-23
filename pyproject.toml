@@ -1,0 +1,14 @@
+[project]
+name = "casecut"
+version = "0.1.0"
+description = "CaseCutoutTool — удаление фона с фото чехлов на базе мастер-масок по устройствам"
+requires-python = ">=3.10"
+
+[project.scripts]
+casecut = "casecut.ui.app:main"
+casecut-cli = "casecut.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
