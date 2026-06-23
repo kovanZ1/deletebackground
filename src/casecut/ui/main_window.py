@@ -7,6 +7,7 @@ from PySide6 import QtWidgets
 
 from .teach_page import TeachPage
 from .auto_page import AutoPage
+from ..paths import devices_dir as default_devices_dir
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -14,7 +15,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self.setWindowTitle("CaseCutoutTool")
         self.resize(1040, 700)
-        devices_dir = Path(devices_dir) if devices_dir else (Path.cwd() / "devices")
+        devices_dir = Path(devices_dir) if devices_dir else default_devices_dir()
 
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)

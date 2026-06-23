@@ -1,4 +1,8 @@
-"""Холст редактора маски: фото + маска, кисть/ластик/вырез/лассо, undo/redo."""
+"""Холст редактора маски: фото + маска. Инструменты:
+кисть, ластик, вырез (тянуть овал), лассо (клики, ПКМ/двойной клик — замкнуть),
+волшебная палочка (клик — стереть связную область похожего цвета). undo/redo.
+Курсор показывает размер кисти/ластика.
+"""
 from __future__ import annotations
 
 import numpy as np
@@ -16,11 +20,14 @@ class MaskCanvas(QtWidgets.QWidget):
         super().__init__(parent)
         self._bgr = None
         self.editor: MaskEditor | None = None
-        self.tool = "brush"            # brush | erase | cutout | lasso
+        self.tool = "brush"            # brush | erase | cutout | lasso | magic
         self.radius = 18
+        self.tolerance = 30
         self._last = None
-        self._drag_start = None
-        self._lasso: list = []
+        self._drag_start = None        # img coords
+        self._drag_cur = None          # img coords
+        self._lasso: list = []         # img coords
+        self._cursor = None            # widget coords (QPointF)
         self.setMinimumSize(380, 380)
         self.setMouseTracking(True)
 
@@ -37,10 +44,16 @@ class MaskCanvas(QtWidgets.QWidget):
     def set_tool(self, tool: str) -> None:
         self.tool = tool
         self._lasso = []
+        self._drag_start = None
+        self._drag_cur = None
         self.update()
 
     def set_radius(self, r) -> None:
         self.radius = max(1, int(r))
+        self.update()
+
+    def set_tolerance(self, t) -> None:
+        self.tolerance = max(1, int(t))
 
     def propose_outline(self) -> None:
         if self._bgr is None or self.editor is None:
@@ -100,10 +113,46 @@ class MaskCanvas(QtWidgets.QWidget):
                      pix.scaled(int(dw), int(dh),
                                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                                 QtCore.Qt.TransformationMode.SmoothTransformation))
-        if len(self._lasso) >= 2:
+
+        # лассо: точки + линии + замыкающая
+        if self._lasso:
+            pen = QtGui.QPen(QtGui.QColor(226, 75, 74), 2)
+            p.setPen(pen)
+            pts = [self._to_widget(pt) for pt in self._lasso]
+            for i in range(1, len(pts)):
+                p.drawLine(pts[i - 1], pts[i])
+            if len(pts) >= 2:
+                dashed = QtGui.QPen(QtGui.QColor(226, 75, 74), 1, QtCore.Qt.PenStyle.DashLine)
+                p.setPen(dashed)
+                p.drawLine(pts[-1], pts[0])
+            p.setPen(pen)
+            for pt in pts:
+                p.setBrush(QtGui.QColor(226, 75, 74))
+                p.drawEllipse(pt, 3, 3)
+            p.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            p.drawText(int(ox) + 6, int(oy) + 18,
+                       "Лассо: клики по контуру, ПКМ или двойной клик — замкнуть")
+
+        # вырез: живое превью овала
+        if self.tool == "cutout" and self._drag_start and self._drag_cur:
+            a = self._to_widget(self._drag_start)
+            b = self._to_widget(self._drag_cur)
             p.setPen(QtGui.QPen(QtGui.QColor(226, 75, 74), 2))
-            for i in range(1, len(self._lasso)):
-                p.drawLine(self._to_widget(self._lasso[i - 1]), self._to_widget(self._lasso[i]))
+            p.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            p.drawEllipse(QtCore.QRectF(a, b))
+
+        # курсор кисти/ластика — кружок по размеру
+        if self._cursor is not None and self.tool in ("brush", "erase"):
+            rpx = self.radius * s
+            col = QtGui.QColor(40, 40, 40) if self.tool == "brush" else QtGui.QColor(226, 75, 74)
+            p.setPen(QtGui.QPen(col, 1.5))
+            p.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            p.drawEllipse(self._cursor, rpx, rpx)
+        elif self._cursor is not None and self.tool == "magic":
+            c = self._cursor
+            p.setPen(QtGui.QPen(QtGui.QColor(24, 95, 165), 1.5))
+            p.drawLine(QtCore.QPointF(c.x() - 7, c.y()), QtCore.QPointF(c.x() + 7, c.y()))
+            p.drawLine(QtCore.QPointF(c.x(), c.y() - 7), QtCore.QPointF(c.x(), c.y() + 7))
 
     # --- мышь ---
     def mousePressEvent(self, e):
@@ -120,32 +169,35 @@ class MaskCanvas(QtWidgets.QWidget):
             self.update()
         elif self.tool == "cutout":
             self._drag_start = ip
+            self._drag_cur = ip
+        elif self.tool == "magic":
+            if self.editor.magic(self._bgr, ip[0], ip[1], self.tolerance, ERASE):
+                self.maskChanged.emit()
+                self.update()
         elif self.tool == "lasso":
             if e.button() == QtCore.Qt.MouseButton.RightButton:
-                if len(self._lasso) >= 3:
-                    self.editor.cutout_polygon(self._lasso)
-                    self.maskChanged.emit()
-                self._lasso = []
-                self.update()
+                self._close_lasso()
             else:
                 self._lasso.append(ip)
                 self.update()
 
     def mouseMoveEvent(self, e):
-        if self._bgr is None or self.editor is None:
-            return
-        if self.tool in ("brush", "erase") and (e.buttons() & QtCore.Qt.MouseButton.LeftButton):
-            ip = self._to_img(e.position())
-            if ip and self._last:
-                self.editor.line(self._last[0], self._last[1], ip[0], ip[1],
-                                 self.radius, ADD if self.tool == "brush" else ERASE)
-                self._last = ip
-                self.maskChanged.emit()
-                self.update()
+        self._cursor = e.position()
+        if self._bgr is not None and self.editor is not None:
+            if self.tool in ("brush", "erase") and (e.buttons() & QtCore.Qt.MouseButton.LeftButton):
+                ip = self._to_img(e.position())
+                if ip and self._last:
+                    self.editor.line(self._last[0], self._last[1], ip[0], ip[1],
+                                     self.radius, ADD if self.tool == "brush" else ERASE)
+                    self._last = ip
+                    self.maskChanged.emit()
+            elif self.tool == "cutout" and self._drag_start:
+                self._drag_cur = self._to_img(e.position())
+        self.update()
 
     def mouseReleaseEvent(self, e):
         if self.tool == "cutout" and self._drag_start is not None and self.editor is not None:
-            ip = self._to_img(e.position())
+            ip = self._to_img(e.position()) or self._drag_cur
             if ip:
                 x0, y0 = self._drag_start
                 x1, y1 = ip
@@ -155,5 +207,21 @@ class MaskCanvas(QtWidgets.QWidget):
                     self.editor.cutout_ellipse(cx, cy, rx, ry)
                     self.maskChanged.emit()
             self._drag_start = None
+            self._drag_cur = None
             self.update()
         self._last = None
+
+    def mouseDoubleClickEvent(self, e):
+        if self.tool == "lasso":
+            self._close_lasso()
+
+    def leaveEvent(self, _e):
+        self._cursor = None
+        self.update()
+
+    def _close_lasso(self):
+        if self.editor is not None and len(self._lasso) >= 3:
+            self.editor.cutout_polygon(self._lasso)
+            self.maskChanged.emit()
+        self._lasso = []
+        self.update()

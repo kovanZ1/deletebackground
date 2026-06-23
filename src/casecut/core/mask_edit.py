@@ -90,6 +90,29 @@ class MaskEditor:
         cv2.ellipse(self.mask, (int(cx), int(cy)), (int(rx), int(ry)), 0, 0, 360, 0, -1)
         self.end_stroke()
 
+    def magic(self, image_bgr, x, y, tol: int = 30, mode: str = ERASE) -> bool:
+        """Волшебная палочка: выделить связную область похожего цвета на ФОТО
+        от точки (x,y) и стереть/добавить её в маске. True если что-то выделилось."""
+        region = flood_select(image_bgr, (x, y), tol)
+        if not region.any():
+            return False
+        self.begin_stroke()
+        self.mask[region] = 0 if mode == ERASE else 255
+        return True
+
     def binarize(self) -> None:
         """Привести к строгому 0/255 (после сглаженных операций)."""
         self.mask = np.where(self.mask > 127, 255, 0).astype(np.uint8)
+
+
+def flood_select(image_bgr, seed_xy, tol: int = 30):
+    """Булева маска связной области похожего цвета на фото от точки seed_xy."""
+    h, w = image_bgr.shape[:2]
+    x, y = int(seed_xy[0]), int(seed_xy[1])
+    if not (0 <= x < w and 0 <= y < h):
+        return np.zeros((h, w), dtype=bool)
+    ff = np.zeros((h + 2, w + 2), np.uint8)
+    flags = 4 | cv2.FLOODFILL_MASK_ONLY | (255 << 8)
+    cv2.floodFill(image_bgr.copy(), ff, (x, y), 0,
+                  (tol, tol, tol), (tol, tol, tol), flags)
+    return ff[1:-1, 1:-1] > 0

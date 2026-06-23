@@ -31,7 +31,8 @@ class TeachPage(QtWidgets.QWidget):
 
         self._tools = QtWidgets.QButtonGroup(self)
         for key, label in [("brush", "Кисть"), ("erase", "Ластик"),
-                           ("cutout", "Вырез"), ("lasso", "Лассо")]:
+                           ("cutout", "Вырез"), ("lasso", "Лассо"),
+                           ("magic", "Палочка")]:
             btn = QtWidgets.QPushButton(label)
             btn.setCheckable(True)
             btn.clicked.connect(lambda _c, k=key: self.canvas.set_tool(k))
@@ -49,6 +50,16 @@ class TeachPage(QtWidgets.QWidget):
         size.setFixedWidth(110)
         size.valueChanged.connect(self.canvas.set_radius)
         bar.addWidget(size)
+
+        bar.addWidget(QtWidgets.QLabel("Допуск"))
+        tol = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        tol.setMinimum(5)
+        tol.setMaximum(80)
+        tol.setValue(30)
+        tol.setFixedWidth(90)
+        tol.setToolTip("Порог похожести для «Палочки»")
+        tol.valueChanged.connect(self.canvas.set_tolerance)
+        bar.addWidget(tol)
 
         b_undo = QtWidgets.QPushButton("Undo")
         b_undo.clicked.connect(self.canvas.undo)
