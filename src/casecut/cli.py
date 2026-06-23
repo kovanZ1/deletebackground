@@ -18,14 +18,15 @@ from .store.device_store import (
     build_template, save_template, load_all_templates, list_devices,
 )
 from .pipeline.batch import process_folder, make_substring_router
+from .core.imageio import imread
 
 
 def _cmd_build(a) -> int:
-    img = cv2.imread(a.ref_image, cv2.IMREAD_COLOR)
+    img = imread(a.ref_image)
     if img is None:
         print("Не удалось открыть --ref-image", file=sys.stderr)
         return 2
-    mask = cv2.imread(a.ref_mask, cv2.IMREAD_GRAYSCALE)
+    mask = imread(a.ref_mask, cv2.IMREAD_GRAYSCALE)
     if mask is None:
         print("Не удалось открыть --ref-mask", file=sys.stderr)
         return 2

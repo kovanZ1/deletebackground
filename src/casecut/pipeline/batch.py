@@ -18,6 +18,7 @@ import cv2
 from .processor import process_image
 from ..preview.previews import render_previews
 from ..core.mask_apply import crop_to_content
+from ..core.imageio import imread, imwrite
 
 IMG_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 CSV_FIELDS = ["filename", "status", "mask_used", "output_file", "error", "reasons"]
@@ -84,7 +85,7 @@ def process_folder(input_dir, output_dir, templates: dict, *, router=None,
                 review_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, review_dir / p.name)
             else:
-                img = cv2.imread(str(p), cv2.IMREAD_COLOR)
+                img = imread(str(p))
                 if img is None:
                     row["status"] = "ERROR"
                     row["error"] = "cannot_read"
@@ -97,14 +98,14 @@ def process_folder(input_dir, output_dir, templates: dict, *, router=None,
                         dev_out = output_dir / device
                         dev_out.mkdir(parents=True, exist_ok=True)
                         out = dev_out / (p.stem + "_alpha.png")
-                        cv2.imwrite(str(out), rgba_out)
+                        imwrite(str(out), rgba_out)
                         row["status"] = "OK"
                         row["output_file"] = str(out.relative_to(output_dir))
                         if make_previews:
                             for k, im in render_previews(rgba_out).items():
                                 pd = output_dir / f"_preview_{k}"
                                 pd.mkdir(parents=True, exist_ok=True)
-                                cv2.imwrite(str(pd / (p.stem + ".png")), im)
+                                imwrite(str(pd / (p.stem + ".png")), im)
                     else:
                         review_dir.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(p, review_dir / p.name)

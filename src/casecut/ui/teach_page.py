@@ -8,6 +8,7 @@ import numpy as np
 from PySide6 import QtCore, QtWidgets
 
 from ..store.device_store import build_template, save_template
+from ..core.imageio import imread
 from .canvas import MaskCanvas
 
 
@@ -82,7 +83,7 @@ class TeachPage(QtWidgets.QWidget):
             self, "Эталонное фото", "", "Изображения (*.jpg *.jpeg *.png *.bmp *.webp)")
         if not path:
             return
-        img = cv2.imread(path, cv2.IMREAD_COLOR)
+        img = imread(path)
         if img is None:
             QtWidgets.QMessageBox.warning(self, "Ошибка", "Не удалось открыть файл")
             return

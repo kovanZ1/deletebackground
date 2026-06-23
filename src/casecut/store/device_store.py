@@ -15,6 +15,7 @@ import numpy as np
 
 from ..core.silhouette import detect_silhouette
 from ..core.holes import derive_holes
+from ..core.imageio import imread, imwrite
 
 
 @dataclass
@@ -57,7 +58,7 @@ def build_template(device: str, ref_img: np.ndarray, ref_mask: np.ndarray, *,
 def save_template(folder, template: DeviceTemplate) -> None:
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(folder / "mask.png"), template.mask)
+    imwrite(str(folder / "mask.png"), template.mask)
     meta = {
         "device": template.device,
         "ref": {
@@ -92,7 +93,7 @@ def load_all_templates(root) -> dict:
 
 def load_template(folder) -> DeviceTemplate:
     folder = Path(folder)
-    mask = cv2.imread(str(folder / "mask.png"), cv2.IMREAD_GRAYSCALE)
+    mask = imread(str(folder / "mask.png"), cv2.IMREAD_GRAYSCALE)
     if mask is None:
         raise FileNotFoundError(f"маска не найдена: {folder/'mask.png'}")
     meta = json.loads((folder / "template.json").read_text(encoding="utf-8"))
