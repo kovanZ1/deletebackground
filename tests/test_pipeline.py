@@ -31,7 +31,7 @@ def test_processor_ok():
     tpl = _make_ref()
     tgt_img, tgt_gt = render_case(canvas=(800, 600), center=(320, 360),
                                   case_size=(270, 540), seed=6)
-    res = process_image(tgt_img, tpl)
+    res = process_image(tgt_img, tpl, align="silhouette")
     assert res.status == "ok", res.reasons
     assert _iou(res.alpha, tgt_gt["body_mask"]) > 0.88
     assert res.rgba.shape[2] == 4
@@ -42,9 +42,37 @@ def test_processor_needs_review_on_border():
     tpl = _make_ref()
     tgt_img, _ = render_case(canvas=(600, 600), center=(40, 300),
                              case_size=(220, 440), seed=8)
-    res = process_image(tgt_img, tpl)
+    res = process_image(tgt_img, tpl, align="silhouette")
     assert res.status == "needs_review"
     assert "touches_border" in res.reasons
+
+
+def test_processor_frame_identity():
+    # одинаковый кадр (одна позиция чехла) -> привязка к кадру 1:1
+    ref_img, ref_gt = render_case(canvas=(800, 600), center=(300, 400),
+                                  case_size=(200, 400), seed=5)
+    hole = (300, 250)
+    r = 22
+    ref_mask = make_mask_from_body(ref_gt["body_mask"], hole_center=hole, hole_radius=r)
+    tpl = build_template("T", ref_img, ref_mask, camera_holes=[(hole[0] - r, hole[1] - r, 2 * r, 2 * r)])
+    # тот же кадр/позиция, другой «принт» (шум)
+    tgt_img, tgt_gt = render_case(canvas=(800, 600), center=(300, 400),
+                                  case_size=(200, 400), seed=99)
+    res = process_image(tgt_img, tpl, align="frame")
+    assert res.status == "ok", res.reasons
+    assert _iou(res.alpha, tgt_gt["body_mask"]) > 0.95     # маска села 1:1
+    assert res.alpha[hole[1], hole[0]] < 60                # дыра камеры на месте
+
+
+def test_processor_frame_resize():
+    ref_img, ref_gt = render_case(canvas=(800, 600), center=(300, 400),
+                                  case_size=(200, 400), seed=5)
+    ref_mask = make_mask_from_body(ref_gt["body_mask"])
+    tpl = build_template("T2", ref_img, ref_mask)
+    tgt_img, _ = render_case(canvas=(400, 300), center=(150, 200), case_size=(100, 200), seed=5)
+    res = process_image(tgt_img, tpl, align="frame")
+    assert res.alpha.shape[:2] == tgt_img.shape[:2]        # ресайз до размера фото
+    assert res.rgba.shape[2] == 4
 
 
 def test_qa_flags_empty_alpha():

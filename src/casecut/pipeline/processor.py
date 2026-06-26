@@ -25,28 +25,43 @@ class ProcessResult:
     scale: float | None
 
 
-def process_image(img_bgr: np.ndarray, template: DeviceTemplate) -> ProcessResult:
-    tgt = detect_silhouette(img_bgr)
-    if tgt is None:
-        return ProcessResult("needs_review", ["no_silhouette"], None, None, None)
+def process_image(img_bgr: np.ndarray, template: DeviceTemplate,
+                  align: str = "frame") -> ProcessResult:
+    """align="frame" — привязка к кадру (маска в координатах кадра, ресайз до
+    размера фото; для одинаковых студийных кадров — детерминированно, без дрейфа).
+    align="silhouette" — старый режим подгонки по силуэту (если кадры разные)."""
+    ih, iw = img_bgr.shape[:2]
 
-    al = estimate_alignment(template.ref, tgt)
-    s = al.scale * template.scale_tweak
-    rcx, rcy = template.ref.centroid
-    tcx, tcy = tgt.centroid
-    tx = tcx - s * rcx + template.offset[0]
-    ty = tcy - s * rcy + template.offset[1]
-    matrix = np.array([[s, 0.0, tx], [0.0, s, ty]], dtype=np.float64)
+    if align == "frame":
+        mh, mw = template.mask.shape[:2]
+        sx = (iw / mw) * template.scale_tweak
+        sy = (ih / mh) * template.scale_tweak
+        # масштаб вокруг центра кадра + ручной сдвиг
+        tx = iw / 2.0 - sx * (mw / 2.0) + template.offset[0]
+        ty = ih / 2.0 - sy * (mh / 2.0) + template.offset[1]
+        matrix = np.array([[sx, 0.0, tx], [0.0, sy, ty]], dtype=np.float64)
+        scale = float(sx)
+        reasons_extra = []
+    else:
+        tgt = detect_silhouette(img_bgr)
+        if tgt is None:
+            return ProcessResult("needs_review", ["no_silhouette"], None, None, None)
+        al = estimate_alignment(template.ref, tgt)
+        s = al.scale * template.scale_tweak
+        rcx, rcy = template.ref.centroid
+        tcx, tcy = tgt.centroid
+        tx = tcx - s * rcx + template.offset[0]
+        ty = tcy - s * rcy + template.offset[1]
+        matrix = np.array([[s, 0.0, tx], [0.0, s, ty]], dtype=np.float64)
+        scale = float(s)
+        reasons_extra = ["touches_border"] if tgt.touches_border else []
 
-    alpha = warp_mask(template.mask, matrix, img_bgr.shape[:2])
+    alpha = warp_mask(template.mask, matrix, (ih, iw))
     if template.feather_px:
         alpha = feather_alpha(alpha, template.feather_px)
 
     qa = quality_check(alpha, matrix, template)
-    reasons = list(qa.reasons)
-    if tgt.touches_border:
-        reasons.append("touches_border")
-
+    reasons = list(qa.reasons) + reasons_extra
     status = "ok" if not reasons else "needs_review"
     rgba = compose_rgba(img_bgr, alpha)
-    return ProcessResult(status, reasons, rgba, alpha, s)
+    return ProcessResult(status, reasons, rgba, alpha, scale)

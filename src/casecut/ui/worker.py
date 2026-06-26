@@ -12,12 +12,13 @@ class BatchWorker(QtCore.QThread):
     failed = QtCore.Signal(str)
 
     def __init__(self, input_dir, output_dir, templates, router,
-                 make_previews, crop, parent=None):
+                 make_previews, crop, align="frame", parent=None):
         super().__init__(parent)
         self._args = (input_dir, output_dir, templates)
         self._router = router
         self._previews = make_previews
         self._crop = crop
+        self._align = align
 
     def run(self):
         try:
@@ -27,6 +28,7 @@ class BatchWorker(QtCore.QThread):
                 router=self._router,
                 make_previews=self._previews,
                 crop_to_object=self._crop,
+                align=self._align,
                 progress_cb=lambda d, t, n, s: self.progress.emit(d, t, n, s),
             )
             self.finished_ok.emit({"summary": summary, "rows": rows, "report": str(report)})

@@ -51,7 +51,7 @@ def test_process_folder(tmp_path):
     cv2.imwrite(str(inp / "good2.jpg"), good2)
     cv2.imwrite(str(inp / "border.jpg"), border)
 
-    summary, rows, report = process_folder(inp, out, {"TEST_MODEL": tpl})
+    summary, rows, report = process_folder(inp, out, {"TEST_MODEL": tpl}, align="silhouette")
 
     assert summary["total"] == 3
     assert summary["ok"] == 2

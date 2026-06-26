@@ -44,9 +44,14 @@ class AutoPage(QtWidgets.QWidget):
         root.addLayout(form)
 
         opts = QtWidgets.QHBoxLayout()
+        self.cb_frame = QtWidgets.QCheckBox("Привязка к кадру")
+        self.cb_frame.setChecked(True)
+        self.cb_frame.setToolTip("Одинаковые кадры: маска ставится в координатах кадра без "
+                                 "поиска силуэта (без смещения вырезов). Снять — если кадры разные.")
         self.cb_prev = QtWidgets.QCheckBox("Создать превью")
         self.cb_prev.setChecked(True)
         self.cb_crop = QtWidgets.QCheckBox("Обрезать по объекту")
+        opts.addWidget(self.cb_frame)
         opts.addWidget(self.cb_prev)
         opts.addWidget(self.cb_crop)
         opts.addStretch(1)
@@ -120,8 +125,10 @@ class AutoPage(QtWidgets.QWidget):
         self.b_run.setEnabled(False)
         self.table.setRowCount(0)
         self.status.setText("Обработка…")
+        align = "frame" if self.cb_frame.isChecked() else "silhouette"
         self._worker = BatchWorker(inp, out, self._templates, router,
-                                   self.cb_prev.isChecked(), self.cb_crop.isChecked())
+                                   self.cb_prev.isChecked(), self.cb_crop.isChecked(),
+                                   align=align)
         self._worker.progress.connect(self._on_progress)
         self._worker.finished_ok.connect(self._on_done)
         self._worker.failed.connect(self._on_fail)

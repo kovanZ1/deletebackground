@@ -53,7 +53,7 @@ def make_regex_router(config: dict):
 
 def process_folder(input_dir, output_dir, templates: dict, *, router=None,
                    make_previews: bool = True, crop_to_object: bool = False,
-                   report_path=None, progress_cb=None):
+                   align: str = "frame", report_path=None, progress_cb=None):
     """Обработать все изображения папки. Возвращает (summary, rows, report_path).
 
     progress_cb(done, total, filename, status) — необязательный колбэк прогресса.
@@ -90,7 +90,7 @@ def process_folder(input_dir, output_dir, templates: dict, *, router=None,
                     row["status"] = "ERROR"
                     row["error"] = "cannot_read"
                 else:
-                    res = process_image(img, templates[device])
+                    res = process_image(img, templates[device], align=align)
                     row["mask_used"] = device
                     row["reasons"] = ";".join(res.reasons)
                     if res.status == "ok":
