@@ -78,9 +78,16 @@ class AutoPage(QtWidgets.QWidget):
         self.refresh_devices()
 
     def refresh_devices(self):
+        current = self.device_combo.currentText()      # сохранить выбор пользователя
+        self.device_combo.blockSignals(True)
         self.device_combo.clear()
         self._templates = load_all_templates(self.devices_dir)
         self.device_combo.addItems(list(self._templates.keys()))
+        if current:
+            idx = self.device_combo.findText(current)
+            if idx >= 0:
+                self.device_combo.setCurrentIndex(idx)
+        self.device_combo.blockSignals(False)
 
     def _pick(self, edit):
         d = QtWidgets.QFileDialog.getExistingDirectory(self, "Выбор папки")

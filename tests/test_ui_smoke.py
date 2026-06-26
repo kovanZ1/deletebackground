@@ -77,3 +77,26 @@ def test_teach_save_then_auto_lists_device(tmp_path, monkeypatch):
     ap = AutoPage(dev)
     names = [ap.device_combo.itemText(i) for i in range(ap.device_combo.count())]
     assert "MODEL_X" in names
+
+
+def test_auto_page_preserves_mask_selection(tmp_path, monkeypatch):
+    _app()
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a, **k: None)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: None)
+    from casecut.ui.teach_page import TeachPage
+    from casecut.ui.auto_page import AutoPage
+
+    dev = str(tmp_path / "devices")
+    for name in ("Model_A", "Model_B"):
+        tp = TeachPage(dev)
+        img, _ = render_case(seed=5)
+        tp.canvas.set_image(img)
+        tp.canvas.propose_outline()
+        tp.device.setText(name)
+        tp._save()
+
+    ap = AutoPage(dev)
+    ap.device_combo.setCurrentIndex(ap.device_combo.findText("Model_B"))
+    assert ap.device_combo.currentText() == "Model_B"
+    ap.refresh_devices()                                  # раньше сбрасывал на первую
+    assert ap.device_combo.currentText() == "Model_B"     # теперь выбор сохранён
