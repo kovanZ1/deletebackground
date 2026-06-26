@@ -42,6 +42,9 @@ def process_image(img_bgr: np.ndarray, template: DeviceTemplate,
         matrix = np.array([[sx, 0.0, tx], [0.0, sy, ty]], dtype=np.float64)
         scale = float(sx)
         reasons_extra = []
+        # маску учили на другом формате -> ресайз растянул бы круглые дыры в эллипсы
+        if sy != 0 and abs(sx / sy - 1.0) > 0.02:
+            reasons_extra.append("frame_aspect_mismatch")
     else:
         tgt = detect_silhouette(img_bgr)
         if tgt is None:

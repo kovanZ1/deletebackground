@@ -75,6 +75,18 @@ def test_processor_frame_resize():
     assert res.rgba.shape[2] == 4
 
 
+def test_processor_frame_aspect_mismatch():
+    # маску учили на 800x600, фото сильно другого аспекта -> флаг в review
+    ref_img, ref_gt = render_case(canvas=(800, 600), center=(300, 400),
+                                  case_size=(200, 400), seed=5)
+    ref_mask = make_mask_from_body(ref_gt["body_mask"])
+    tpl = build_template("T3", ref_img, ref_mask)
+    tgt_img, _ = render_case(canvas=(600, 900), center=(300, 300), case_size=(150, 300), seed=5)
+    res = process_image(tgt_img, tpl, align="frame")
+    assert "frame_aspect_mismatch" in res.reasons
+    assert res.status == "needs_review"
+
+
 def test_qa_flags_empty_alpha():
     tpl = _make_ref()
     alpha = np.zeros((800, 600), dtype=np.uint8)

@@ -20,13 +20,14 @@ class QAResult:
 def transform_bbox(bbox, matrix, out_hw=None):
     """Перенести bbox эталона в координаты цели по similarity-матрице (без поворота)."""
     x, y, w, h = bbox
-    s = float(matrix[0, 0])
+    sx = float(matrix[0, 0])
+    sy = float(matrix[1, 1])
     tx = float(matrix[0, 2])
     ty = float(matrix[1, 2])
-    nx = int(round(s * x + tx))
-    ny = int(round(s * y + ty))
-    nw = int(round(s * w))
-    nh = int(round(s * h))
+    nx = int(round(sx * x + tx))
+    ny = int(round(sy * y + ty))
+    nw = int(round(sx * w))
+    nh = int(round(sy * h))
     if out_hw is not None:
         h_img, w_img = out_hw
         nx = max(0, min(nx, w_img - 1))
@@ -40,10 +41,11 @@ def quality_check(alpha, matrix, template, *, area_tol: float = 0.18,
                   hole_alpha_max: float = 45.0) -> QAResult:
     """Проверить применённую alpha: площадь и прозрачность вырезов камеры."""
     reasons: list = []
-    scale = float(matrix[0, 0])
+    sx = float(matrix[0, 0])
+    sy = float(matrix[1, 1])
 
     mask_body = float((template.mask > 127).sum())
-    expected = mask_body * (scale ** 2)
+    expected = mask_body * sx * sy
     got = float((alpha > 127).sum())
     if expected > 0 and abs(got - expected) / expected > area_tol:
         reasons.append(f"area_mismatch:{got / max(expected, 1.0):.2f}")
